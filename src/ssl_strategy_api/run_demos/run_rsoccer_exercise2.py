@@ -136,7 +136,7 @@ class Exercise2Env(SSLBaseEnv):
         # Draw the target right after the field so robots are drawn on top of it.
         renderer = self.field_renderer
         draw_field = renderer.draw
-
+        
         def draw_field_and_target(surface):
             draw_field(surface)
             if self.target is not None:

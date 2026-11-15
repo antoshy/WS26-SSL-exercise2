@@ -42,3 +42,4 @@ class ConflictAvoidanceStrategy:
         return {
             robot_id: RobotIntent(vx_mps=speed * dx / distance, vy_mps=speed * dy / distance)
         }
+        
