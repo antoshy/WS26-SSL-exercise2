@@ -1,7 +1,13 @@
-import math
+from pathlib import Path
 from typing import Mapping
 
+from stable_baselines3 import SAC
+
 from ssl_strategy_api.models import RobotIntent, TeamColor, TeamConfig, WorldState
+from ssl_strategy_api.strategies.avoidance_features import OBS_DIM, action_to_intent, build_obs
+
+
+MODEL_PATH = Path(__file__).with_name("sac_dir_pen5.zip")
 
 
 class StrikerStrategy:
@@ -12,6 +18,15 @@ class StrikerStrategy:
     The default behavior below is intentionally simple and deliberately not optimal:
     it demonstrates how to access the controlled robot and return a valid mapping.
     """
+
+    def __init__(self, model_path: str | Path = MODEL_PATH) -> None:
+        self.model = SAC.load(model_path, device="cpu")
+        if self.model.observation_space.shape != (OBS_DIM,):
+            raise ValueError("SAC model has an incompatible observation space")
+        self.target = (0.0, 0.0)
+
+    def set_target(self, x: float, y: float) -> None:
+        self.target = (x, y)
 
     def reset(self, seed=None) -> None:
         pass
@@ -41,13 +56,6 @@ class StrikerStrategy:
         if robot is None:
             return {}
 
-        # Simple motion example: move the robot in a small random-like direction.
-        # Replace this with your own strategy logic.
-        theta = state.frame_number * 0.1 if state.frame_number is not None else 0.0
-        return {
-            robot_id: RobotIntent(
-                vx_mps=0.8 * math.cos(theta),
-                vy_mps=0.8 * math.sin(theta),
-                angular_velocity_rad_s=1.0,
-            )
-        }
+        observation = build_obs(state, self.target, robot_id=robot_id)
+        action, _ = self.model.predict(observation, deterministic=True)
+        return {robot_id: action_to_intent(action)}
