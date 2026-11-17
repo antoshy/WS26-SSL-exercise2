@@ -3,6 +3,11 @@ from typing import Mapping, Optional, Tuple
 
 from ssl_strategy_api.models import RobotIntent, TeamColor, TeamConfig, WorldState
 
+from pathlib import Path
+from stable_baselines3 import SAC
+from ssl_strategy_api.strategies.avoidance_features import build_obs, action_to_intent
+
+MODEL_FILE = "sac_dir_pen5.zip"
 
 class ConflictAvoidanceStrategy:
     """Implement your conflict avoidance strategy here for exercise 2.
@@ -17,12 +22,17 @@ class ConflictAvoidanceStrategy:
     def __init__(self) -> None:
         self.target: Optional[Tuple[float, float]] = None
 
+        # load actor and critic weights once
+        self.model = SAC.load(Path(__file__).with_name(MODEL_FILE), device="cpu")
+        self.calls = 0
+        self.action = None
+
     def set_target(self, x_m: float, y_m: float) -> None:
         """Called by the runner with the position the blue robot must reach."""
         self.target = (x_m, y_m)
 
     def reset(self, seed=None) -> None:
-        pass
+        self.calls = 0
 
     def decide(self, state: WorldState, config: TeamConfig) -> Mapping[int, RobotIntent]:
         if not config.controlled_robot_ids or config.team != TeamColor.BLUE:
@@ -32,14 +42,9 @@ class ConflictAvoidanceStrategy:
         if robot is None or self.target is None:
             return {}
 
-        # state.robots_yellow holds the obstacles (positions and measured velocities).
-        dx = self.target[0] - robot.x_m
-        dy = self.target[1] - robot.y_m
-        distance = math.hypot(dx, dy)
-        if distance < 1e-6:
-            return {robot_id: RobotIntent()}
-        speed = min(1.5, distance)
-        return {
-            robot_id: RobotIntent(vx_mps=speed * dx / distance, vy_mps=speed * dy / distance)
-        }
+ 
+        obs = build_obs(state, self.target, robot_id)
+        self.action, _ = self.model.predict(obs, deterministic=True)
+        self.calls += 1
+        return {robot_id: action_to_intent(self.action)}
         

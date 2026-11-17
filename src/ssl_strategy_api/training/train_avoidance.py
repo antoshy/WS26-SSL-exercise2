@@ -6,28 +6,32 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecMonitor
 
 from ssl_strategy_api.training.avoidance_env import AvoidanceEnv
 
-RUN_NAME = "sac_dir_pen5"
-FAILURE_PENALTY = 5.0
-GOAL_AREA_PENALTY = 25.0
+RUN_NAME = "sac_dir_pen5"  # name of the folder in strategies/ and tensorboard/
 TOTAL_TIMESTEPS = 500_000
+FAILURE_PENALTY = 10.0
+ENEMY_ZONE_PENALTY = 0.0
+CRASH_PENALTY = 10
+ACTION_REPEAT = 4
 MODEL_PATH = Path(__file__).parents[1] / "strategies" / RUN_NAME
+STRATEGY_DIR = Path(__file__).parents[1] / "strategies"
+
 ENV_CONFIGS = [
-    dict(n_obstacles=0, obstacle_speed=0, difficulty=1),
-    dict(n_obstacles=3, obstacle_speed=0, difficulty=3),
-    dict(n_obstacles=5, obstacle_speed=0, difficulty=5),
-    dict(n_obstacles=5, obstacle_speed=0.5, difficulty=3),
-    dict(n_obstacles=5, obstacle_speed=1.0, difficulty=4),
-    dict(n_obstacles=8, obstacle_speed=0, difficulty=4),
-    dict(n_obstacles=8, obstacle_speed=1.0, difficulty=5),
-    dict(n_obstacles=10, obstacle_speed=1.0, difficulty=3)
+    dict(scenario="basic"),
+    dict(scenario="static"),
+    dict(scenario="dynamic"),
+    dict(n_obstacles=3, obstacle_speed=0.0, difficulty=5),
+    dict(n_obstacles=5, obstacle_speed=0.0, difficulty=5),
+    dict(n_obstacles=8, obstacle_speed=0.0, difficulty=5),
+    dict(n_obstacles=3, obstacle_speed=1.0, difficulty=4),
+    dict(n_obstacles=5, obstacle_speed=1.0, difficulty=4)
 ]
 
 def make_env(config):
     def _init():
-        return AvoidanceEnv(
-            **config,
-            failure_penalty=FAILURE_PENALTY,
-            goal_area_penalty=GOAL_AREA_PENALTY,
+        return AvoidanceEnv(**config, failure_penalty=FAILURE_PENALTY,
+                                        enemy_zone_penalty=ENEMY_ZONE_PENALTY,
+                                        crash_penalty=CRASH_PENALTY,
+                                        action_repeat=ACTION_REPEAT
         )
     return _init
 
@@ -42,11 +46,11 @@ def main():
         verbose=1,
         tensorboard_log=f"tensorboard/{RUN_NAME}",
         learning_rate=3e-4,
-        buffer_size=300_000,
-        learning_starts=20_000,
+        buffer_size=300_000, #increase buffer size to 300k to avoid early overwriting of experiences
+        learning_starts=20_000, #learning starts after 20.000 steps before exploration
         batch_size=256,
-        gamma=0.98,
-        tau=0.005,
+        gamma=0.98, #discount factor
+        tau=0.005, # soft update coefficient
         policy_kwargs=dict(
             net_arch=dict(
                 pi=[256, 256],

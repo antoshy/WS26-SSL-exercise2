@@ -9,27 +9,49 @@ from ssl_strategy_api.strategies.scripted_obstacle import ScriptedObstacleStrate
 from ssl_strategy_api.adapters.rsoccer import to_rsoccer_commands
 from ssl_strategy_api.helpers import TerminationReason
 from ssl_strategy_api.strategies.avoidance_features import OBS_DIM, build_obs, action_to_intent
+from ssl_strategy_api.helpers import SCENARIOS
 
+ZONE_START_M = 0.35     # penalty starts below this distance between robot centres
+CONTACT_M = 0.18        # collision distance
 
 class AvoidanceEnv(gym.Env):
     """ translates between SB3 (gymnasium) and Exercise2Env """
-    
 
-    def __init__(self, n_obstacles=5, obstacle_speed=0.0, difficulty=1, action_repeat=4, failure_penalty=10.0, goal_area_penalty=25.0, render_mode=None, safety_margin=0.5):
-        self.inner = Exercise2Env(
-        n_random_obstacles=n_obstacles,
-        max_obstacle_speed_mps=obstacle_speed,
-        difficulty=difficulty,
-        render_mode=render_mode,
-    )
+    def __init__(self, 
+                    n_obstacles=5,
+                    obstacle_speed=0.0,
+                    difficulty=1,
+                    action_repeat=4,
+                    failure_penalty=10.0,
+                    enemy_zone_penalty=0.0,
+                    crash_penalty=10,
+                    scenario=None,
+                    render_mode=None
+                    ):
+        if scenario is None:
+            self.inner = Exercise2Env(
+            n_random_obstacles=n_obstacles,
+            max_obstacle_speed_mps=obstacle_speed,
+            difficulty=difficulty,
+            render_mode=render_mode,
+        )
+        else:
+            fixed = SCENARIOS[scenario]
+            self.inner = Exercise2Env(
+                obstacles=fixed.obstacles,
+                target=fixed.target,
+                blue_start=fixed.blue_start,
+                render_mode=render_mode,
+            )
+
         self.yellow = ScriptedObstacleStrategy()
         self.action_space = spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(-math.inf, math.inf, shape=(OBS_DIM,), dtype=np.float32)
         self.max_steps = 1200
         self.action_repeat = action_repeat
         self.failure_penalty = failure_penalty
-        self.goal_area_penalty = goal_area_penalty
-        self.safety_margin = safety_margin  # meters
+        self.enemy_zone_penalty = enemy_zone_penalty
+        self.crash_penalty = crash_penalty
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
@@ -68,25 +90,30 @@ class AvoidanceEnv(gym.Env):
         return build_obs(self.state, self.inner.target), total_reward, terminated, truncated, info
 
     def _reward(self, state, reason):
-        # reward for getting closer
         new_distance = self._distance_to_target(state)
         reward = self.prev_distance - new_distance # progress
         self.prev_distance = new_distance
-
-        robot = state.robots_blue[BLUE_ROBOT_ID]
-        for y_bot in state.robots_yellow.values():
-            obs_dist = math.hypot(robot.x_m - y_bot.x_m, robot.y_m - y_bot.y_m)
-            if obs_dist < self.safety_margin:
-                # Penalty scales up smoothly as the robot penetrates the safety margin
-                reward -= (self.safety_margin - obs_dist) * 0.2
         if reason == TerminationReason.TARGET_REACHED:
             seconds_left = EPISODE_TIME_LIMIT_SECONDS - self.steps * SIMULATION_STEP_SECONDS
             reward += 10.0 + seconds_left / 3 # target reached
-        elif reason == TerminationReason.OPPONENT_GOAL_AREA:
-            reward -= self.goal_area_penalty
+        elif reason == TerminationReason.COLLISION:
+            reward -= self.crash_penalty # collision
         elif reason is not None:
-            reward -= self.failure_penalty  # collision or leaving the field
+            reward -= self.failure_penalty # entered goal area, left the field
+        else:
+            reward -= self._zone_penalty(state)   # episode goes on: small penalty near enemies
         return reward
+
+
+    def _zone_penalty(self, state):
+        """ grows linearly from 0 at ZONE_START_M to self.enemy_zone_penalty at contact """
+        robot = state.robots_blue[BLUE_ROBOT_ID]
+        distances = [math.hypot(o.x_m - robot.x_m, o.y_m - robot.y_m)
+                     for o in state.robots_yellow.values()]
+        if not distances or min(distances) >= ZONE_START_M:
+            return 0.0
+        depth = (ZONE_START_M - min(distances)) / (ZONE_START_M - CONTACT_M)
+        return self.enemy_zone_penalty * depth
 
     def _distance_to_target(self, state):
         robot = state.robots_blue[BLUE_ROBOT_ID]

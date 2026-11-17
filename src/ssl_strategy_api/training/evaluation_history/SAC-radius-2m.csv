@@ -1,0 +1,52 @@
+model,config,episodes,successes
+SAC-radius-2m,{'scenario': 'basic'},50,50
+SAC-radius-2m,{'scenario': 'static'},50,50
+SAC-radius-2m,{'scenario': 'dynamic'},50,50
+SAC-radius-2m,"{'n_obstacles': 0, 'obstacle_speed': 0.0, 'difficulty': 1}",50,44
+SAC-radius-2m,"{'n_obstacles': 0, 'obstacle_speed': 0.0, 'difficulty': 3}",50,45
+SAC-radius-2m,"{'n_obstacles': 0, 'obstacle_speed': 0.0, 'difficulty': 5}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.0, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.0, 'difficulty': 3}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.0, 'difficulty': 5}",50,44
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.5, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.5, 'difficulty': 3}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 0.5, 'difficulty': 5}",50,46
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 1.0, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 1.0, 'difficulty': 3}",50,45
+SAC-radius-2m,"{'n_obstacles': 1, 'obstacle_speed': 1.0, 'difficulty': 5}",50,46
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.0, 'difficulty': 1}",50,46
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.0, 'difficulty': 3}",50,44
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.0, 'difficulty': 5}",50,43
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.5, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.5, 'difficulty': 3}",50,46
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 0.5, 'difficulty': 5}",50,45
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 1.0, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 1.0, 'difficulty': 3}",50,45
+SAC-radius-2m,"{'n_obstacles': 3, 'obstacle_speed': 1.0, 'difficulty': 5}",50,45
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.0, 'difficulty': 1}",50,44
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.0, 'difficulty': 3}",50,43
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.0, 'difficulty': 5}",50,45
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.5, 'difficulty': 1}",50,46
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.5, 'difficulty': 3}",50,43
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 0.5, 'difficulty': 5}",50,43
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 1.0, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 1.0, 'difficulty': 3}",50,44
+SAC-radius-2m,"{'n_obstacles': 5, 'obstacle_speed': 1.0, 'difficulty': 5}",50,48
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.0, 'difficulty': 1}",50,41
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.0, 'difficulty': 3}",50,38
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.0, 'difficulty': 5}",50,35
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.5, 'difficulty': 1}",50,44
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.5, 'difficulty': 3}",50,37
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 0.5, 'difficulty': 5}",50,43
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 1.0, 'difficulty': 1}",50,45
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 1.0, 'difficulty': 3}",50,44
+SAC-radius-2m,"{'n_obstacles': 8, 'obstacle_speed': 1.0, 'difficulty': 5}",50,38
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.0, 'difficulty': 1}",50,39
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.0, 'difficulty': 3}",50,29
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.0, 'difficulty': 5}",50,29
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.5, 'difficulty': 1}",50,41
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.5, 'difficulty': 3}",50,34
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 0.5, 'difficulty': 5}",50,38
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 1.0, 'difficulty': 1}",50,41
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 1.0, 'difficulty': 3}",50,36
+SAC-radius-2m,"{'n_obstacles': 10, 'obstacle_speed': 1.0, 'difficulty': 5}",50,38
