@@ -8,7 +8,7 @@ from ssl_strategy_api.training.avoidance_env import AvoidanceEnv
 EPISODES = 20
 
 MODEL_PATH = Path("checkpoints/ppo_dir_pen10/rl_model_2000000_steps")
-env = AvoidanceEnv(n_obstacles=10, obstacle_speed=0, difficulty=3, render_mode="human")
+env = AvoidanceEnv(n_obstacles=3, obstacle_speed=0, difficulty=3, render_mode="human")
 
 def main():
     # das trainierte Modell laden, also die Gewichte von Actor und Critic

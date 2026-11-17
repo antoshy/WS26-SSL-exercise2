@@ -4,7 +4,8 @@ from ssl_strategy_api.models import TeamColor, TeamConfig, WorldState, FieldGeom
 
 
 K_OBSTACLES = 5 # five nearest enemies get into the feature vector
-OBS_DIM = 11 + 5 * K_OBSTACLES # 11 features plus 5 for each nearest enemy
+ENEMY_FEATURES = 6 # 5: position and speed, 6: direction, closeness and speed
+OBS_DIM = 11 + ENEMY_FEATURES * K_OBSTACLES # 11 features plus ENEMY_FEATURES for each nearest enemy
 MAX_SPEED = 2.0
 PENALTY_LENGTH = 1.0
 PENALTY_WIDTH = 2.0
@@ -31,11 +32,11 @@ def build_obs(state: WorldState, target: tuple[float, float], robot_id=0):
     features[3] = robot.vx_mps / MAX_SPEED # robot's speed on x-axis                                                                                     
     features[4] = robot.vy_mps / MAX_SPEED # robot's speed on y-axis                                                                                     
     features[5] = (half_field_length - robot.x_m) / FIELD_SCALE   # distance to the right field end                                                      
-    features[6] = (robot.x_m + half_field_length) / FIELD_SCALE   # distance to the left field end                                                       
+    features[6] = (robot.x_m + half_field_length) / FIELD_SCALE   # distance to the left  field end                                                       
     features[7] = (half_field_width - robot.y_m) / FIELD_SCALE    # distance to the upper field end                                                      
     features[8] = (robot.y_m + half_field_width) / FIELD_SCALE    # distance to the lower field end                                                      
-    features[9] = (max(penalty_x_boundary, robot.x_m) - robot.x_m) / NEAR_SCALE                           # distance to nearest point of goal area x-axis
-    features[10] = (max(-penalty_y_boundary, min(penalty_y_boundary, robot.y_m)) - robot.y_m) / NEAR_SCALE # distance to nearest point of goal area y-axis
+    features[9] = (max(penalty_x_boundary, robot.x_m) - robot.x_m) / NEAR_SCALE                             # distance to nearest point of goal area x-axis
+    features[10] = (max(-penalty_y_boundary, min(penalty_y_boundary, robot.y_m)) - robot.y_m) / NEAR_SCALE  # distance to nearest point of goal area y-axis
     features[11:] = _obstacle_features(robot, state.robots_yellow.values())
 
     return features
@@ -48,17 +49,35 @@ def _obstacle_features(robot, obstacles):
     )
     nearest = by_distance[:K_OBSTACLES]
 
-    features = []
-    for obstacle in nearest:
-        dx = (obstacle.x_m - robot.x_m) / NEAR_SCALE
-        dy = (obstacle.y_m - robot.y_m) / NEAR_SCALE
-        relative_vx = (obstacle.vx_mps - robot.vx_mps) / MAX_SPEED
-        relative_vy = (obstacle.vy_mps - robot.vy_mps) / MAX_SPEED
-        taken = 1.0
-        features += [dx, dy, relative_vx, relative_vy, taken]
+    if ENEMY_FEATURES == 5:
+        features = []
+        for obstacle in nearest:
+            dx = (obstacle.x_m - robot.x_m) / NEAR_SCALE
+            dy = (obstacle.y_m - robot.y_m) / NEAR_SCALE
+            relative_vx = (obstacle.vx_mps - robot.vx_mps) / MAX_SPEED
+            relative_vy = (obstacle.vy_mps - robot.vy_mps) / MAX_SPEED
+            taken = 1.0
+            features += [dx, dy, relative_vx, relative_vy, taken]
 
-    features += [0.0] * 5 * (K_OBSTACLES - len(nearest))   # empty seats
-    return features
+        features += [0.0] * ENEMY_FEATURES * (K_OBSTACLES - len(nearest))   # empty seats
+        return features
+
+    elif ENEMY_FEATURES == 6:
+        features = []
+        for obstacle in nearest:
+            dx = (obstacle.x_m - robot.x_m)
+            dy = (obstacle.y_m - robot.y_m)
+            distance_enemy = max(math.hypot(dx, dy), 1e-6)
+            direction_x = dx / distance_enemy
+            direction_y = dy / distance_enemy
+            relative_vx = (obstacle.vx_mps - robot.vx_mps) / MAX_SPEED
+            relative_vy = (obstacle.vy_mps - robot.vy_mps) / MAX_SPEED
+            taken = 1.0
+            closeness = max(0.0, 1.0 - (distance_enemy - 0.18) / 1.5) # 1.0 at contact (0.18 m), falls to 0.0 at 1.5 m and beyond
+            features += [direction_x, direction_y, closeness, relative_vx, relative_vy, taken]
+
+        features += [0.0] * ENEMY_FEATURES * (K_OBSTACLES - len(nearest))   # empty seats
+        return features
 
 def action_to_intent(action: np.ndarray) -> RobotIntent:
     """convert two values for x and y -> RobotIntent(vx, vy)"""
