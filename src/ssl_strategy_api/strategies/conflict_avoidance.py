@@ -4,9 +4,9 @@ from typing import List, Mapping, Optional, Tuple
 from ssl_strategy_api.models import RobotIntent, RobotState, TeamColor, TeamConfig, WorldState
 
 ROBOT_RADIUS_M = 0.09
-COLLISION_DIST_M = 2.0 * ROBOT_RADIUS_M  # 0.18 m center-to-center touch
-OBSTACLE_MARGIN_M = 0.08                 # 0.26 m total minimum safe distance
-WALL_MARGIN_M = 0.10
+COLLISION_DIST_M = 2.0 * ROBOT_RADIUS_M + 0.05  # 0.18 m center-to-center touch
+OBSTACLE_MARGIN_M = 0.02                 
+WALL_MARGIN_M = 0.01
 
 PENALTY_LENGTH_M = 1.0
 PENALTY_WIDTH_M = 2.0
