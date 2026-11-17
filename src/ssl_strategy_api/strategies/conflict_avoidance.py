@@ -1,18 +1,26 @@
 import math
-from typing import Mapping, Optional, Tuple
+from typing import List, Mapping, Optional, Tuple
 
-from ssl_strategy_api.models import RobotIntent, TeamColor, TeamConfig, WorldState
+from ssl_strategy_api.models import RobotIntent, RobotState, TeamColor, TeamConfig, WorldState
 
 ROBOT_RADIUS_M = 0.09
+COLLISION_DIST_M = 2.0 * ROBOT_RADIUS_M  # 0.18 m center-to-center touch
+OBSTACLE_MARGIN_M = 0.08                 # 0.26 m total minimum safe distance
+WALL_MARGIN_M = 0.10
+
 PENALTY_LENGTH_M = 1.0
 PENALTY_WIDTH_M = 2.0
-BOX_SAFETY_MARGIN_M = ROBOT_RADIUS_M  # 0.09 m (one robot radius)
+BOX_SAFETY_MARGIN_M = ROBOT_RADIUS_M
 MAX_SPEED_MPS = 2.0
+
+HORIZON_STEPS = 8
+STEP_DT_S = 0.10
 
 class ConflictAvoidanceStrategy:
 
     def __init__(self) -> None:
         self.target: Optional[Tuple[float, float]] = None
+        self._last_cmd: Tuple[float, float] = (0.0, 0.0)
 
 
     def set_target(self, x_m: float, y_m: float) -> None:
@@ -21,7 +29,7 @@ class ConflictAvoidanceStrategy:
 
 
     def reset(self, seed=None) -> None:
-        pass
+        self._last_cmd = (0.0, 0.0)
 
 
     def _is_in_penalty_box(self, x_m: float, y_m: float, half_length: float, margin_m: float) -> bool:
@@ -72,7 +80,78 @@ class ConflictAvoidanceStrategy:
 
             return second_corner
 
+
+    def _sample_candidates(self, robot: RobotState, waypoint: Tuple[float, float]) -> List[Tuple[float, float]]:
+        dx = waypoint[0] - robot.x_m
+        dy = waypoint[1] - robot.y_m
+        distance = math.hypot(dx, dy)
+
+        desired_speed = (min(MAX_SPEED_MPS, max(0.35, distance * 4.5)) 
+            if distance < 0.35 
+            else MAX_SPEED_MPS
+        )
+        # 24 angles around the circle (every 15 degrees) + exact angle to waypoint
+        angles = [2.0 * math.pi * i / 24 for i in range(24)]
+        if distance > 1e-6:
+            angles.append(math.atan2(dy, dx))
+
+        speeds = [desired_speed, 1.3, 0.6, 0.25]
+        candidates: List[Tuple[float, float]] = [(0.0, 0.0)]
+        for spd in speeds:
+            for ang in angles:
+                candidates.append((spd * math.cos(ang), spd * math.sin(ang)))
+        return candidates
+
+
+    def _evaluate_candidate(self,vx: float,vy: float,robot: RobotState,obstacles: List[RobotState],half_length: float,half_width: float,waypoint: Tuple[float, float],
+        ) -> Tuple[bool, float, float]:
+            """Simulate (vx, vy) for 0.8s. Returns (is_safe, cost, min_clearance)."""
+            safe_dist = COLLISION_DIST_M + OBSTACLE_MARGIN_M
+            min_clearance = float("inf")
+            is_safe = True
+
+            end_x, end_y = robot.x_m, robot.y_m
+            box_margin = BOX_SAFETY_MARGIN_M
+            if self.target is not None and self._is_in_penalty_box(
+                self.target[0], self.target[1], half_length, BOX_SAFETY_MARGIN_M
+            ):
+                box_margin = 0.01
+
+            for step in range(1, HORIZON_STEPS + 1):
+                t = step * STEP_DT_S
+                px = robot.x_m + vx * t
+                py = robot.y_m + vy * t
+                end_x, end_y = px, py
+
+                # 1. Wall check
+                if abs(px) > half_length - WALL_MARGIN_M or abs(py) > half_width - WALL_MARGIN_M:
+                    is_safe = False
+
+                # 2. Penalty box check
+                if self._is_in_penalty_box(px, py, half_length, box_margin):
+                    is_safe = False
+
+                # 3. Obstacle check (static positions for Stage C)
+                for obs in obstacles:
+                    dist = math.hypot(px - obs.x_m, py - obs.y_m)
+                    if dist < min_clearance:
+                        min_clearance = dist
+                    if dist < safe_dist:
+                        is_safe = False
+
+                # Stop rollout early if we already reached the final target
+                if self.target is not None and math.hypot(self.target[0] - px, self.target[1] - py) <= 0.08:
+                    break
+
+            # Score the trajectory (lower cost = better)
+            dist_to_wp = math.hypot(waypoint[0] - end_x, waypoint[1] - end_y)
+            clearance_penalty = 1.2 * (0.45 - min_clearance) if min_clearance < 0.45 else 0.0
+            smoothness_penalty = 0.08 * math.hypot(vx - self._last_cmd[0], vy - self._last_cmd[1])
+
+            cost = dist_to_wp + clearance_penalty + smoothness_penalty
+            return is_safe, cost, min_clearance
     
+
     def decide(self, state: WorldState, config: TeamConfig) -> Mapping[int, RobotIntent]:
         if not config.controlled_robot_ids or config.team != TeamColor.BLUE:
             return {}
@@ -84,17 +163,30 @@ class ConflictAvoidanceStrategy:
         half_length = state.field.length_m / 2.0
         waypoint = self._get_active_waypoint((robot.x_m, robot.y_m), half_length)
 
-        # state.robots_yellow holds the obstacles (positions and measured velocities).
-        dx = waypoint[0] - robot.x_m
-        dy = waypoint[1] - robot.y_m
-        distance = math.hypot(dx, dy)
-        if distance < 1e-6:
+        half_width = state.field.width_m / 2.0
+        if math.hypot(self.target[0] - robot.x_m, self.target[1] - robot.y_m) < 1e-6:
+            self._last_cmd = (0.0, 0.0)
             return {robot_id: RobotIntent()}
-        # Full 2.0 m/s when far, gentle deceleration in the final 0.35 m to avoid overshooting
-        speed = min(MAX_SPEED_MPS, max(0.35, distance * 4.5)) if distance < 0.35 else MAX_SPEED_MPS
-        return {
-            robot_id: RobotIntent(
-                vx_mps=speed * dx / distance,
-                vy_mps=speed * dy / distance,
+
+        obstacles = list(state.robots_yellow.values())
+        candidates = self._sample_candidates(robot, waypoint)
+
+        best_safe_cmd: Optional[Tuple[float, float]] = None
+        best_safe_cost = float("inf")
+        best_fallback_cmd: Tuple[float, float] = (0.0, 0.0)
+        best_fallback_clearance = -1.0
+
+        for vx, vy in candidates:
+            is_safe, cost, min_clearance = self._evaluate_candidate(
+                vx, vy, robot, obstacles, half_length, half_width, waypoint
             )
-        }
+            if is_safe and cost < best_safe_cost:
+                best_safe_cost = cost
+                best_safe_cmd = (vx, vy)
+            if min_clearance > best_fallback_clearance:
+                best_fallback_clearance = min_clearance
+                best_fallback_cmd = (vx, vy)
+
+        chosen_vx, chosen_vy = best_safe_cmd if best_safe_cmd is not None else best_fallback_cmd
+        self._last_cmd = (chosen_vx, chosen_vy)
+        return {robot_id: RobotIntent(vx_mps=chosen_vx, vy_mps=chosen_vy)}
