@@ -7,21 +7,38 @@ from ssl_strategy_api.run_demos.run_rsoccer_exercise2 import (
 )
 from ssl_strategy_api.strategies.scripted_obstacle import ScriptedObstacleStrategy
 from ssl_strategy_api.adapters.rsoccer import to_rsoccer_commands
-from ssl_strategy_api.helpers import TerminationReason
+from ssl_strategy_api.helpers import TerminationReason, SCENARIOS
 from ssl_strategy_api.strategies.avoidance_features import OBS_DIM, build_obs, action_to_intent
 
 
 class AvoidanceEnv(gym.Env):
     """ translates between SB3 (gymnasium) and Exercise2Env """
-    
 
-    def __init__(self, n_obstacles=5, obstacle_speed=0.0, difficulty=1, action_repeat=4, failure_penalty=10.0, render_mode=None):
-        self.inner = Exercise2Env(
-        n_random_obstacles=n_obstacles,
-        max_obstacle_speed_mps=obstacle_speed,
-        difficulty=difficulty,
-        render_mode=render_mode,
-    )
+    def __init__(self,
+                 n_obstacles=5,
+                 obstacle_speed=0.0,
+                 difficulty=1,
+                 action_repeat=4,
+                 failure_penalty=10.0,
+                 scenario=None,
+                 render_mode=None
+                 ):
+        if scenario is None:
+            self.inner = Exercise2Env(
+                n_random_obstacles=n_obstacles,
+                max_obstacle_speed_mps=obstacle_speed,
+                difficulty=difficulty,
+                render_mode=render_mode,
+            )
+        else:
+            fixed = SCENARIOS[scenario]
+            self.inner = Exercise2Env(
+                obstacles=fixed.obstacles,
+                target=fixed.target,
+                blue_start=fixed.blue_start,
+                render_mode=render_mode,
+            )
+
         self.yellow = ScriptedObstacleStrategy()
         self.action_space = spaces.Box(-1.0, 1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(-math.inf, math.inf, shape=(OBS_DIM,), dtype=np.float32)
@@ -67,13 +84,12 @@ class AvoidanceEnv(gym.Env):
 
     def _reward(self, state, reason):
         new_distance = self._distance_to_target(state)
-        reward = self.prev_distance - new_distance # progress
+        reward = self.prev_distance - new_distance - 0.02
         self.prev_distance = new_distance
         if reason == TerminationReason.TARGET_REACHED:
-            seconds_left = EPISODE_TIME_LIMIT_SECONDS - self.steps * SIMULATION_STEP_SECONDS
-            reward += 10.0 + seconds_left / 3 # target reached
+            reward += 10.0
         elif reason is not None:
-            reward -= self.failure_penalty # collision, entered goal area, left the field
+            reward -= 5
         return reward
 
     def _distance_to_target(self, state):

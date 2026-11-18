@@ -3,8 +3,8 @@ import math
 from ssl_strategy_api.models import TeamColor, TeamConfig, WorldState, FieldGeometry, RobotIntent
 
 
-K_OBSTACLES = 5 # five nearest enemies get into the feature vector
-OBS_DIM = 11 + 5 * K_OBSTACLES # 11 features plus 5 for each nearest enemy
+K_OBSTACLES = 4 # four nearest enemies get into the feature vector
+OBS_DIM = 11 + 4 * K_OBSTACLES # 11 features plus 4 for each nearest enemy
 MAX_SPEED = 2.0
 PENALTY_LENGTH = 1.0
 PENALTY_WIDTH = 2.0
@@ -54,10 +54,11 @@ def _obstacle_features(robot, obstacles):
         dy = (obstacle.y_m - robot.y_m) / NEAR_SCALE
         relative_vx = (obstacle.vx_mps - robot.vx_mps) / MAX_SPEED
         relative_vy = (obstacle.vy_mps - robot.vy_mps) / MAX_SPEED
-        taken = 1.0
-        features += [dx, dy, relative_vx, relative_vy, taken]
+        features += [dx, dy, relative_vx, relative_vy]
 
-    features += [0.0] * 5 * (K_OBSTACLES - len(nearest))   # empty seats
+    for i in range(K_OBSTACLES - len(nearest)):
+        features += [-1.1, -1.1, 0, 0] # empty seats (outside the field)
+
     return features
 
 def action_to_intent(action: np.ndarray) -> RobotIntent:
