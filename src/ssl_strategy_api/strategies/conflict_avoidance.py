@@ -13,8 +13,8 @@ PENALTY_WIDTH_M = 2.0
 BOX_SAFETY_MARGIN_M = ROBOT_RADIUS_M
 MAX_SPEED_MPS = 2.0
 
-HORIZON_STEPS = 9
-STEP_DT_S = 0.10
+HORIZON_STEPS = 10
+STEP_DT_S = 0.20
 
 
 class ConflictAvoidanceStrategy:
@@ -179,7 +179,8 @@ class ConflictAvoidanceStrategy:
                 break
 
         dist_to_wp = math.hypot(waypoint[0] - end_x, waypoint[1] - end_y)
-        clearance_penalty = 1.6 * (0.55 - min_clearance) if min_clearance < 0.55 else 0.0
+        soft_zone = safe_dist + 0.25
+        clearance_penalty = 1.6 * (soft_zone - min_clearance) if min_clearance < soft_zone else 0.0
         smoothness_penalty = 0.08 * math.hypot(vx - self._last_cmd[0], vy - self._last_cmd[1])
 
         cost = dist_to_wp + clearance_penalty + smoothness_penalty
